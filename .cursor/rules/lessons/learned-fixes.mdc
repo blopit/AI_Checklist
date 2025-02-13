@@ -1,0 +1,100 @@
+# Lessons Learned Rules
+
+## Environment Setup
+- Use Python venv in ./venv
+- Include debug info in program output
+- Read files before editing
+- Handle file encodings properly
+- Ensure database drivers (psycopg2) are installed
+- Use environment variables for configuration
+- Set proper Python path for imports
+
+## Database Setup
+- Start with minimal schema for prototypes
+- Use SQLAlchemy for ORM
+- Implement proper database migrations
+- Handle database connections safely
+- Use connection pooling
+- Set up cascading deletes where appropriate
+- Add proper foreign key constraints
+
+## API Development
+- Use FastAPI for rapid prototyping
+- Implement proper Pydantic models
+- Add proper type hints
+- Handle async operations correctly
+- Implement proper error handling
+- Use dependency injection for database sessions
+- Document API endpoints
+
+## AI Integration
+- Pin OpenAI package version or use latest API format
+- Handle API versioning changes (openai>=1.0.0 vs <1.0.0)
+- Implement proper error handling for AI responses
+- Use system messages for context
+- Structure function calls properly
+- Keep conversation context for better assistance
+- Validate AI responses before applying changes
+
+## Best Practices
+- Follow conventional commits
+- Write clear documentation
+- Test thoroughly
+- Monitor performance
+- Keep prototypes lean but extensible
+- Use proper code organization
+- Handle resource cleanup
+- Check package compatibility before upgrading
+
+## Common Fixes
+- Use seaborn-v0_8 style name
+- Handle UTF-8 encoding
+- Add stderr debug info
+- Clean stdout output
+- Fix import paths in migration files
+- Handle database connection errors
+- Implement proper error responses
+- Pin package versions for stability
+- Update OpenAI API calls for v1.0.0
+
+<rule>
+name: lessons_learned
+description: Rules based on experience and fixes
+filters:
+  - type: event
+    pattern: "error_fix|improvement"
+  - type: content
+    pattern: "fix|improve|learn"
+
+actions:
+  - type: enforce
+    conditions:
+      - pattern: "debug_info"
+        message: "Include debug information"
+      - pattern: "file_read"
+        message: "Read file before editing"
+      - pattern: "db_session"
+        message: "Properly handle database sessions"
+      - pattern: "error_handling"
+        message: "Implement proper error handling"
+      - pattern: "api_version"
+        message: "Check API version compatibility"
+
+  - type: suggest
+    message: |
+      Remember these lessons:
+      1. Use virtual environment
+      2. Include debug info
+      3. Read before edit
+      4. Document fixes
+      5. Update rules
+      6. Handle resources properly
+      7. Keep prototypes simple
+      8. Plan for extensibility
+      9. Check API versions
+      10. Pin package versions
+
+metadata:
+  priority: high
+  version: 1.2
+</rule> 
