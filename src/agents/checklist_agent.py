@@ -351,7 +351,10 @@ When using the update_checklist_items function:
    - You have asked for and received confirmation
 2. Include items in uncompleted_items[] ONLY when the user has explicitly asked to uncheck them
 3. Include clear reasoning in your message about what was verified and why
-4. When multiple items are verified at once, list all of them in your response"""
+4. When multiple items are verified at once, list all of them in your response
+
+DO NOT INCLUDE CHECKLIST IDS IN YOUR RESPONSE.
+"""
 
         try:
             # Get AI response
@@ -387,6 +390,23 @@ When using the update_checklist_items function:
                             }
                         }
                     }
+                },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "get_relevant_image",
+                        "description": "Get a relevant safety or compliance image based on the current context",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string",
+                                    "description": "The message to get a relevant image for"
+                                }
+                            },
+                            "required": ["message"]
+                        }
+                    }
                 }],
                 tool_choice="auto"
             )
@@ -407,14 +427,43 @@ When using the update_checklist_items function:
                 tool_call = ai_message.tool_calls[0]
                 try:
                     function_args = json.loads(tool_call.function.arguments)
+                    result = {"message": ai_message.content}
+                    
+                    # Handle get_relevant_image tool call
+                    if tool_call.function.name == "get_relevant_image":
+                        try:
+                            # Make request to image endpoint
+                            async with httpx.AsyncClient() as client:
+                                response = await client.post(
+                                    'https://blopit.app.n8n.cloud/webhook/red_image',
+                                    json={"message": function_args["message"]}
+                                )
+                                if response.status_code == 200:
+                                    image_data = response.json()
+                                    # Only add image_url if we got a valid image response
+                                    if image_data and image_data.get("image"):
+                                        result["image_url"] = {
+                                            "image": image_data["image"],
+                                            "type": image_data.get("type", "Safety Related")
+                                        }
+                            # Return the result whether we got an image or not
+                            return result
+                        except Exception as e:
+                            logger.error(f"Error getting image: {str(e)}")
+                            # Continue with just the message on error
+                            return result
+                    
+                    # Handle update_checklist_items tool call
+                    elif tool_call.function.name == "update_checklist_items":
+                        logger.info(f"Function args: {function_args}")
+                        result.update(function_args)
+                        return result
+
                 except json.JSONDecodeError:
                     logger.error("Invalid JSON in function arguments")
-                    function_args = {
+                    return {
                         "message": "I apologize, but I encountered an error processing the updates."
                     }
-                
-                logger.info(f"Function args: {function_args}")
-                return function_args
 
             # Return regular message if no tool calls
             return {"message": ai_message.content}

@@ -224,6 +224,13 @@ async def chat(message: Message, db: Session = Depends(get_db)):
                     "type": "message",
                     "timestamp": datetime.utcnow().isoformat()
                 },
+                # Add image message if present
+                *([] if not result.get("image_url") else [{
+                    "role": "assistant",
+                    "content": result["image_url"],
+                    "type": "image",
+                    "timestamp": datetime.utcnow().isoformat()
+                }]),
                 {
                     "role": "system",
                     "content": "\n".join(status_message) if status_message else "",
