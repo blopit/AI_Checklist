@@ -21,6 +21,25 @@ globs:
 - Use connection pooling
 - Set up cascading deletes where appropriate
 - Add proper foreign key constraints
+- Ensure migrations are in correct directory (migrations/versions)
+- Copy existing migrations to versions directory if needed
+- Always verify database tables are created after migrations
+- Handle migration dependencies properly
+- Check migration revision IDs match between files
+
+## Database Migration Fixes
+- When "relation does not exist" error occurs:
+  1. Verify alembic.ini has correct database URL
+  2. Check migrations/versions directory exists and contains migration files
+  3. Copy any existing migrations to migrations/versions/
+  4. Run `alembic upgrade head` to apply migrations
+  5. Verify tables are created in database
+- Common migration issues:
+  1. Missing migration files in versions directory
+  2. Incorrect migration revision IDs
+  3. Missing database driver (psycopg2)
+  4. Wrong database URL in alembic.ini
+  5. Incorrect Python path in env.py
 
 ## API Development
 - Use FastAPI for rapid prototyping
@@ -60,6 +79,7 @@ globs:
 - Implement proper error responses
 - Pin package versions for stability
 - Update OpenAI API calls for v1.0.0
+- Fix database migration issues by following proper steps
 
 <rule>
 name: lessons_learned
@@ -83,6 +103,8 @@ actions:
         message: "Implement proper error handling"
       - pattern: "api_version"
         message: "Check API version compatibility"
+      - pattern: "db_migration"
+        message: "Follow proper database migration steps"
 
   - type: suggest
     message: |
@@ -97,8 +119,10 @@ actions:
       8. Plan for extensibility
       9. Check API versions
       10. Pin package versions
+      11. Follow migration steps
+      12. Verify database setup
 
 metadata:
   priority: high
-  version: 1.2
+  version: 1.3
 </rule> 

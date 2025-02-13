@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Development Setup Assistant</title>
+    <title>RED Hospitality Compliance Assistant</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <style>
         body {
@@ -193,33 +193,161 @@
             width: 2.5rem;
             height: 1.25rem;
         }
+        .tab-button {
+            padding: 0.5rem 1rem;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+        
+        .tab-button.active {
+            border-bottom-color: #3B82F6;
+            color: #3B82F6;
+        }
+        
+        .checklist-section {
+            margin-bottom: 1.5rem;
+            background: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .section-header {
+            padding: 0.75rem 1rem;
+            background: #f8fafc;
+            border-bottom: 1px solid #e5e7eb;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        
+        .section-header:hover {
+            background: #f1f5f9;
+        }
+        
+        .section-content {
+            padding: 1rem;
+        }
+        
+        .checklist-item {
+            display: flex;
+            align-items: flex-start;
+            padding: 0.5rem;
+            border-bottom: 1px solid #e5e7eb;
+            transition: background-color 0.2s ease;
+        }
+        
+        .checklist-item:last-child {
+            border-bottom: none;
+        }
+        
+        .checklist-item:hover {
+            background-color: #f9fafb;
+        }
+        
+        .item-details {
+            margin-left: 0.5rem;
+            flex: 1;
+        }
+        
+        .item-description {
+            font-size: 0.875rem;
+            color: #374151;
+        }
+        
+        .item-meta {
+            font-size: 0.75rem;
+            color: #6b7280;
+            margin-top: 0.25rem;
+        }
+        
+        .progress-bar {
+            height: 4px;
+            background: #e5e7eb;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: #3B82F6;
+            transition: width 0.3s ease;
+        }
+        
+        .notes-input {
+            width: 100%;
+            padding: 0.5rem;
+            margin-top: 0.5rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+            display: none;
+        }
+        
+        .checklist-item.expanded .notes-input {
+            display: block;
+        }
+        
+        .tabs-container {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        
+        .tabs-container::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .category-info {
+            padding: 1rem;
+            background: #f0f9ff;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .category-description {
+            font-size: 0.875rem;
+            color: #1e40af;
+        }
     </style>
 </head>
 <body class="bg-gray-100">
     <div class="main-container">
         <header class="mb-4">
-            <h1 class="text-2xl font-bold text-gray-800">AI Development Setup Assistant</h1>
-            <p class="text-sm text-gray-600">Let's get your development environment ready</p>
+            <h1 class="text-2xl font-bold text-gray-800">RED Hospitality Compliance Assistant</h1>
+            <p class="text-sm text-gray-600">Ensuring safety and compliance across our operations</p>
         </header>
 
         <div class="content-container">
-            <!-- Development Setup Checklist Panel -->
+            <!-- Checklist Panel -->
             <div class="panel">
                 <div class="panel-header">
-                    <div class="flex items-center justify-between">
-                        <h2 class="text-lg font-semibold">Setup Checklist</h2>
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-semibold">Compliance Checklists</h2>
                         <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs" id="progress">0/0 completed</span>
+                    </div>
+                    <div class="tabs-container">
+                        <div class="flex space-x-4" id="categoryTabs">
+                            <!-- Category tabs will be added here -->
+                        </div>
                     </div>
                 </div>
                 <div class="panel-content" id="checklistContainer">
-                    <!-- Checklist items will be dynamically added here -->
+                    <div class="category-info" id="categoryInfo">
+                        <!-- Category description will be shown here -->
+                    </div>
+                    <div id="sections">
+                        <!-- Checklist sections will be added here -->
+                    </div>
                 </div>
             </div>
 
             <!-- AI Assistant Chat Panel -->
             <div class="panel">
                 <div class="panel-header">
-                    <h2 class="text-lg font-semibold">AI Assistant</h2>
+                    <h2 class="text-lg font-semibold">Checklist AI Assistant</h2>
                 </div>
                 <div id="chatContainer" class="chat-container">
                     <!-- Chat messages will appear here -->
@@ -227,7 +355,7 @@
                 <div class="chat-input-container">
                     <div class="flex gap-2 items-center">
                         <input type="text" id="userInput" 
-                            placeholder="Describe what you've done or ask for help..." 
+                            placeholder="Ask for help or report completed items..." 
                             class="flex-1 p-2 border rounded text-sm">
                         <button onclick="sendMessage()" 
                             class="bg-blue-500 text-white px-4 py-2 rounded text-sm hover:bg-blue-600">
@@ -248,7 +376,8 @@
     </div>
 
     <script>
-        let checklistItems = [];
+        let categories = [];
+        let currentCategoryId = null;
         let isSpeechMode = false;
         let audioPlayer = new Audio();
         let mediaRecorder = null;
@@ -256,110 +385,247 @@
         let isRecording = false;
         let isContinuousMode = false;
 
-        // Fetch initial checklist state
-        async function fetchChecklist() {
+        // Fetch checklists from the server
+        async function fetchChecklists() {
             try {
-                const response = await fetch('/api/checklist');
+                const response = await fetch('/api/checklists');
                 const data = await response.json();
-                checklistItems = data.items;
-                displayChecklist();
+                categories = data;
+                displayCategories();
+                if (categories.length > 0) {
+                    showCategory(categories[0].id);
+                }
             } catch (error) {
-                console.error('Error fetching checklist:', error);
+                console.error('Error fetching checklists:', error);
             }
         }
 
-        // Display checklist with animations
-        function displayChecklist() {
-            const container = document.getElementById('checklistContainer');
-            container.innerHTML = '';
+        // Display category tabs
+        function displayCategories() {
+            const tabsContainer = document.getElementById('categoryTabs');
+            tabsContainer.innerHTML = '';
+            
+            categories.forEach(category => {
+                const tab = document.createElement('button');
+                tab.className = `tab-button ${category.id === currentCategoryId ? 'active' : ''}`;
+                tab.onclick = () => showCategory(category.id);
+                tab.textContent = category.name;
+                tabsContainer.appendChild(tab);
+            });
+        }
 
-            checklistItems.forEach(item => {
-                const itemElement = document.createElement('div');
-                itemElement.className = 'flex items-center space-x-2 p-2 hover:bg-gray-50 border-b last:border-b-0';
-                itemElement.setAttribute('data-item-id', item.id);
-                itemElement.innerHTML = `
-                    <input type="checkbox" ${item.is_completed ? 'checked' : ''}
-                        onchange="toggleItem(${item.id})"
-                        class="h-4 w-4 text-blue-600">
-                    <span class="${item.is_completed ? 'completed' : ''} flex-1 text-sm">
-                        ${item.description}
-                    </span>
-                `;
-                container.appendChild(itemElement);
+        // Show selected category
+        function showCategory(categoryId) {
+            currentCategoryId = categoryId;
+            const category = categories.find(c => c.id === categoryId);
+            if (!category) return;
+
+            // Update tabs
+            document.querySelectorAll('.tab-button').forEach(tab => {
+                tab.classList.toggle('active', tab.textContent === category.name);
             });
 
-            // Update progress
-            const completed = checklistItems.filter(item => item.is_completed).length;
-            const total = checklistItems.length;
-            const progress = document.getElementById('progress');
-            progress.textContent = `${completed}/${total} completed`;
-            
-            // Add completion celebration
-            if (completed === total && total > 0) {
-                addChatMessage('Assistant', '🎉 Congratulations! You\'ve completed all setup tasks! Your development environment is ready to go.');
+            // Show category info
+            const categoryInfo = document.getElementById('categoryInfo');
+            categoryInfo.innerHTML = `
+                <h3 class="font-semibold text-blue-900 mb-2">${category.name}</h3>
+                <p class="category-description">${category.description}</p>
+            `;
+
+            // Display sections
+            displaySections(category);
+            updateProgress();
+        }
+
+        // Display sections and their items
+        function displaySections(category) {
+            const sectionsContainer = document.getElementById('sections');
+            sectionsContainer.innerHTML = '';
+
+            category.sections.forEach(section => {
+                const sectionElement = document.createElement('div');
+                sectionElement.className = 'checklist-section mb-4';
+                
+                const completedItems = section.items.filter(item => item.is_completed).length;
+                const totalItems = section.items.length;
+                const progressPercent = (completedItems / totalItems) * 100;
+
+                sectionElement.innerHTML = `
+                    <div class="section-header" onclick="toggleSection(this)">
+                        <div class="flex items-center justify-between">
+                            <h3 class="font-semibold text-gray-700">${section.name}</h3>
+                            <span class="text-sm text-gray-500">${completedItems}/${totalItems}</span>
+                        </div>
+                        <div class="progress-bar mt-2">
+                            <div class="progress-fill" style="width: ${progressPercent}%"></div>
+                        </div>
+                    </div>
+                    <div class="section-content" style="display: none;">
+                        ${section.items.map(item => `
+                            <div class="checklist-item" data-item-id="${item.id}">
+                                <input type="checkbox" 
+                                    ${item.is_completed ? 'checked' : ''} 
+                                    onchange="toggleItem(${item.id}, this.checked)"
+                                    class="mt-1">
+                                <div class="item-details">
+                                    <div class="item-description">${item.description}</div>
+                                    ${item.last_checked ? `
+                                        <div class="item-meta">
+                                            Last checked: ${new Date(item.last_checked).toLocaleString()}
+                                            ${item.checked_by ? `by ${item.checked_by}` : ''}
+                                        </div>
+                                    ` : ''}
+                                    <input type="text" 
+                                        class="notes-input" 
+                                        placeholder="Add notes..."
+                                        value="${item.notes || ''}"
+                                        onchange="updateNotes(${item.id}, this.value)">
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                
+                sectionsContainer.appendChild(sectionElement);
+            });
+        }
+
+        // Toggle section visibility
+        function toggleSection(header) {
+            const content = header.nextElementSibling;
+            const isVisible = content.style.display === 'block';
+            content.style.display = isVisible ? 'none' : 'block';
+        }
+
+        // Toggle item completion
+        async function toggleItem(itemId, isCompleted) {
+            try {
+                const response = await fetch('/api/checklist/item', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        id: itemId,
+                        is_completed: isCompleted,
+                        checked_by: 'User' // You might want to get this from user input
+                    }),
+                });
+
+                if (response.ok) {
+                    // Refresh checklists to get updated state
+                    await fetchChecklists();
+                    
+                    // Trigger chat message about the update
+                    const item = findItemById(itemId);
+                    if (item) {
+                        const message = isCompleted ? 
+                            `I've completed: ${item.description}. Here's what I did...` :
+                            `I need to uncheck "${item.description}" because it needs to be reviewed.`;
+                        await sendMessage(message);
+                    }
+                }
+            } catch (error) {
+                console.error('Error updating item:', error);
             }
         }
 
-        // Toggle item completion (now just triggers a chat message)
-        function toggleItem(itemId) {
-            const item = checklistItems.find(i => i.id === itemId);
-            if (item) {
-                const message = item.is_completed ? 
-                    `I want to uncheck "${item.description}" because I haven't actually completed it yet.` :
-                    `I've completed: ${item.description}. Here's what I did...`;
-                sendMessage(message);
+        // Update item notes
+        async function updateNotes(itemId, notes) {
+            try {
+                await fetch('/api/checklist/item', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        id: itemId,
+                        is_completed: findItemById(itemId)?.is_completed || false,
+                        notes: notes
+                    }),
+                });
+            } catch (error) {
+                console.error('Error updating notes:', error);
             }
+        }
+
+        // Helper function to find item by ID
+        function findItemById(itemId) {
+            for (const category of categories) {
+                for (const section of category.sections) {
+                    const item = section.items.find(i => i.id === itemId);
+                    if (item) return item;
+                }
+            }
+            return null;
+        }
+
+        // Update progress display
+        function updateProgress() {
+            const category = categories.find(c => c.id === currentCategoryId);
+            if (!category) return;
+
+            let totalItems = 0;
+            let completedItems = 0;
+
+            category.sections.forEach(section => {
+                totalItems += section.items.length;
+                completedItems += section.items.filter(item => item.is_completed).length;
+            });
+
+            const progress = document.getElementById('progress');
+            progress.textContent = `${completedItems}/${totalItems} completed`;
         }
 
         // Chat functionality
-        function addChatMessage(sender, message, isError = false) {
+        function addChatMessage(sender, message, isError = false, type = 'message') {
             const chatContainer = document.getElementById('chatContainer');
             const messageElement = document.createElement('div');
             
-            // Check if the message contains progress information
-            if (message.includes('✅ Just completed:') || message.includes('❌ Just unchecked:')) {
-                const parts = message.split('\n\n');
-                const mainMessage = parts.find(p => !p.includes('✅') && !p.includes('❌') && !p.includes('Progress:'));
-                const updates = parts.filter(p => p.includes('✅') || p.includes('❌') || p.includes('Progress:'));
+            // Ensure message is a string and not undefined/null
+            const messageContent = String(message || '');
+            
+            // Check if this is a status update message
+            if (type === 'status_update' && messageContent) {
+                const parts = messageContent.split('\n\n');
+                const updates = parts.filter(p => p && p.trim());
                 
-                // Add main message if it exists
-                if (mainMessage?.trim()) {
-                    addChatMessage(sender, mainMessage);
+                if (updates.length > 0) {
+                    const progressInfo = updates.join('\n');
+                    const isUncheck = messageContent.includes('❌');
+                    
+                    messageElement.className = 'assistant-message mb-4';
+                    messageElement.innerHTML = `
+                        <div class="progress-bubble ${isUncheck ? 'uncheck' : ''}">
+                            <div class="progress-header">
+                                <span>${isUncheck ? '🔄' : '📋'}</span>
+                                <span>Progress Update</span>
+                            </div>
+                            <div class="progress-items">
+                                ${progressInfo}
+                            </div>
+                        </div>
+                    `;
                 }
-                
-                // Create progress bubble for each update
-                const progressInfo = updates.join('\n');
-                const isUncheck = message.includes('❌ Just unchecked:');
-                
-                messageElement.className = 'assistant-message mb-4';
-                messageElement.innerHTML = `
-                    <div class="progress-bubble ${isUncheck ? 'uncheck' : ''}">
-                        <div class="progress-header">
-                            <span>${isUncheck ? '🔄' : '📋'}</span>
-                            <span>Progress Update</span>
-                        </div>
-                        <div class="progress-items">
-                            ${progressInfo}
-                        </div>
-                    </div>
-                `;
             } else {
                 messageElement.className = `${sender === 'User' ? 'user-message text-right' : 'assistant-message'} mb-4`;
                 messageElement.innerHTML = `
                     <div class="chat-message inline-block ${sender === 'User' ? 'bg-blue-100' : isError ? 'bg-red-100' : 'bg-gray-100'} rounded-lg px-4 py-2">
                         <div class="font-semibold mb-1">${sender}</div>
-                        <div>${message}</div>
+                        <div>${messageContent}</div>
                     </div>
                 `;
                 
                 // Speak assistant messages in speech mode
-                if (sender === 'Assistant') {
-                    speakText(message);
+                if (sender === 'Assistant' && !isError) {
+                    speakText(messageContent);
                 }
             }
             
-            chatContainer.appendChild(messageElement);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
+            if (messageElement.innerHTML) {
+                chatContainer.appendChild(messageElement);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
         }
 
         async function sendMessage() {
@@ -381,45 +647,31 @@
 
                     if (response.ok) {
                         const data = await response.json();
-                        addChatMessage('Assistant', data.message);
                         
-                        // Update checklist if items were updated
-                        if (data.updated_items) {
-                            const previousState = [...checklistItems];
-                            checklistItems = data.updated_items;
-                            
-                            // Find newly completed and uncompleted items
-                            const newlyCompleted = checklistItems.filter((item, index) => 
-                                item.is_completed && !previousState[index].is_completed
-                            );
-                            const newlyUncompleted = checklistItems.filter((item, index) => 
-                                !item.is_completed && previousState[index].is_completed
-                            );
-                            
-                            // Highlight changes
-                            displayChecklist();
-                            newlyCompleted.forEach(item => {
-                                const element = document.querySelector(`[data-item-id="${item.id}"]`);
-                                if (element) {
-                                    element.classList.add('bg-green-50');
-                                    setTimeout(() => {
-                                        element.classList.remove('bg-green-50');
-                                    }, 2000);
-                                }
-                            });
-                            newlyUncompleted.forEach(item => {
-                                const element = document.querySelector(`[data-item-id="${item.id}"]`);
-                                if (element) {
-                                    element.classList.add('bg-red-50');
-                                    setTimeout(() => {
-                                        element.classList.remove('bg-red-50');
-                                    }, 2000);
+                        // Process each message in the response
+                        if (data.messages && Array.isArray(data.messages)) {
+                            data.messages.forEach(msg => {
+                                if (msg && msg.content) {
+                                    addChatMessage(
+                                        msg.role === 'user' ? 'User' : 'Assistant',
+                                        msg.content,
+                                        msg.type === 'error',
+                                        msg.type
+                                    );
                                 }
                             });
                         }
+                        
+                        // Update categories and refresh the UI
+                        if (data.categories) {
+                            categories = data.categories;
+                            if (currentCategoryId) {
+                                showCategory(currentCategoryId);
+                            }
+                        }
                     } else {
                         const errorData = await response.json();
-                        addChatMessage('Assistant', 'Sorry, I encountered an error: ' + errorData.detail, true);
+                        addChatMessage('Assistant', 'Sorry, I encountered an error: ' + (errorData.detail || 'Unknown error'), true);
                     }
                 } catch (error) {
                     console.error('Error sending message:', error);
@@ -749,8 +1001,8 @@
         });
 
         // Initial load
-        fetchChecklist();
-        addChatMessage('Assistant', 'Hi! I\'m here to help you set up your development environment. Tell me what you\'ve already done or what you need help with.');
+        fetchChecklists();
+        addChatMessage('Assistant', 'Hi! I\'m here to help you maintain compliance with RED Hospitality\'s standards. How can I assist you today?');
     </script>
 </body>
 </html> 
