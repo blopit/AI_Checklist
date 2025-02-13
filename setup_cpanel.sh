@@ -25,9 +25,14 @@ chmod -R 755 logs
 # Create production .env file if it doesn't exist
 if [ ! -f .env ]; then
     cp .env.example .env
+    # Set production environment
+    echo "ENV=production" >> .env
 fi
 
-# Run database migrations
-alembic upgrade head
+# Create and populate the database
+python populate_db.py
 
-echo "Setup complete! Please update your .env file with production settings." 
+# Set appropriate permissions for the database
+chmod 664 ~/checklist.db
+
+echo "Setup complete! The application is ready to run." 
