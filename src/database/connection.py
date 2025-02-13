@@ -11,12 +11,20 @@ logger = logging.getLogger(__name__)
 # Load environment variables
 load_dotenv()
 
-# Simple database connection settings
-DATABASE_URL = "postgresql://postgres:postgres@localhost/auto_checklist"
+# Get environment
+ENV = os.getenv("ENV", "development")
+
+# Database connection settings
+if ENV == "test":
+    DATABASE_URL = "sqlite:///:memory:"
+    connect_args = {"check_same_thread": False}
+else:
+    DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost/auto_checklist")
+    connect_args = {}
 
 try:
     # Create SQLAlchemy engine
-    engine = create_engine(DATABASE_URL)
+    engine = create_engine(DATABASE_URL, connect_args=connect_args)
     
     # Test the connection
     with engine.connect() as conn:

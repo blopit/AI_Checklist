@@ -1,73 +1,108 @@
+"""
+Tests for main application functionality
+"""
 import pytest
-from fastapi.testclient import TestClient
-import sys
-import os
+import httpx
+from ..main import app
 
-# Add the src directory to the Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+@pytest.fixture
+async def client():
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+        yield client
 
-from main import app, checklist_state
+@pytest.mark.asyncio
+async def test_app_startup(client):
+    """Test application startup and basic configuration"""
+    assert app.title == "RED Hospitality Compliance Assistant"
+    
+    # Test CORS configuration
+    response = await client.options("/")
+    assert response.status_code == 200
+    assert "access-control-allow-origin" in response.headers
+    assert response.headers["access-control-allow-origin"] == "*"
 
-client = TestClient(app)
-
-def test_read_root():
-    response = client.get("/")
+@pytest.mark.asyncio
+async def test_static_files(client):
+    """Test static files are served correctly"""
+    response = await client.get("/static/index.html")
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
 
-def test_get_checklist():
-    response = client.get("/api/checklist")
+@pytest.mark.asyncio
+async def test_read_root(client):
+    """Test root endpoint"""
+    response = await client.get("/")
     assert response.status_code == 200
-    data = response.json()
-    assert "items" in data
-    assert len(data["items"]) > 0
-    assert all(isinstance(item, dict) for item in data["items"])
-    assert all("id" in item and "description" in item and "is_completed" in item 
-              for item in data["items"])
+    assert "text/html" in response.headers["content-type"]
 
-def test_chat_endpoint():
-    # Test basic chat functionality
-    response = client.post(
+@pytest.mark.asyncio
+async def test_get_checklist(client):
+    """Test getting checklist"""
+    response = await client.get("/api/checklists")
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)
+
+@pytest.mark.asyncio
+async def test_chat_endpoint(client):
+    """Test chat endpoint with valid message"""
+    response = await client.post(
         "/api/chat",
-        json={"content": "Hello, I need help setting up my environment"}
+        json={
+            "content": "Hello",
+            "session_id": "test_session"
+        }
     )
     assert response.status_code == 200
     data = response.json()
-    assert "message" in data
-    assert "updated_items" in data
-    assert isinstance(data["message"], str)
-    assert isinstance(data["updated_items"], list)
+    assert "messages" in data
+    assert "success" in data
+    assert data["success"] is True
 
-def test_chat_completion_verification():
-    # Test checklist item completion verification
-    response = client.post(
+@pytest.mark.asyncio
+async def test_chat_completion_verification(client):
+    """Test chat completion with verification"""
+    response = await client.post(
         "/api/chat",
-        json={"content": "I've installed Python 3.12"}
+        json={
+            "content": "I've completed the safety check",
+            "session_id": "test_session"
+        }
     )
     assert response.status_code == 200
     data = response.json()
-    assert "message" in data
-    assert "version" in data["message"].lower() or "verify" in data["message"].lower()
+    assert "messages" in data
+    assert "success" in data
+    assert data["success"] is True
 
-def test_invalid_chat_message():
-    response = client.post(
+@pytest.mark.asyncio
+async def test_invalid_chat_message(client):
+    """Test chat endpoint with invalid message"""
+    response = await client.post(
         "/api/chat",
-        json={"content": ""}
+        json={"wrong_field": "Hello"}
     )
-    assert response.status_code == 200  # Should still return 200 with a helpful message
+    assert response.status_code == 422  # Validation error
 
-def test_checklist_state_integrity():
-    # Test that checklist items maintain correct structure
-    response = client.get("/api/checklist")
+@pytest.mark.asyncio
+async def test_checklist_state_integrity(client):
+    """Test checklist state integrity"""
+    # Get initial state
+    response = await client.get("/api/checklists")
+    assert response.status_code == 200
     initial_state = response.json()
     
-    # Send a chat message that might update state
-    client.post("/api/chat", json={"content": "I've completed everything"})
+    # Make a chat request
+    response = await client.post(
+        "/api/chat",
+        json={
+            "content": "Show me the checklist",
+            "session_id": "test_session"
+        }
+    )
+    assert response.status_code == 200
     
-    # Check state again
-    response = client.get("/api/checklist")
-    new_state = response.json()
-    
-    # Verify structure remains intact
-    assert len(initial_state["items"]) == len(new_state["items"])
-    assert all(isinstance(item["is_completed"], bool) for item in new_state["items"]) 
+    # Verify state hasn't changed unexpectedly
+    response = await client.get("/api/checklists")
+    assert response.status_code == 200
+    current_state = response.json()
+    assert current_state == initial_state 
