@@ -14,9 +14,9 @@ import json
 from fastapi.responses import FileResponse, StreamingResponse
 import httpx
 
-from database.connection import get_db
-from database.models import ChecklistCategory, ChecklistSection, ChecklistItem
-from agents.checklist_agent import ChecklistAgent
+from src.database.connection import get_db
+from src.database.models import ChecklistCategory, ChecklistSection, ChecklistItem
+from src.agents.checklist_agent import ChecklistAgent
 
 # Load environment variables
 load_dotenv()

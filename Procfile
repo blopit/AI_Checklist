@@ -1,1 +1,1 @@
-web: uvicorn src.main:app --host 0.0.0.0 --port $PORT 
+web: PYTHONPATH=$PYTHONPATH:. gunicorn -w 4 -k uvicorn.workers.UvicornWorker src.main:app 
