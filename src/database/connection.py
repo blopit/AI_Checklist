@@ -1,8 +1,9 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 import os
-from dotenv import load_dotenv
 import logging
+from sqlalchemy import create_engine, text
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+from dotenv import load_dotenv
 
 # Set up basic logging
 logging.basicConfig(level=logging.INFO)
@@ -11,57 +12,34 @@ logger = logging.getLogger(__name__)
 # Load environment variables
 load_dotenv()
 
-# Get environment
-ENV = os.getenv("ENV", "development")
+# SQLite database URL with absolute path
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+DATABASE_URL = f"sqlite:///{os.path.join(BASE_DIR, 'checklist.db')}"
+logger.info(f"Using database at: {DATABASE_URL}")
 
-# Database connection settings
-def get_database_url():
-    if ENV == "test":
-        return "sqlite:///:memory:", {"check_same_thread": False}
-    
-    # Get database URL from environment variable
-    database_url = os.getenv("DATABASE_URL")
-    
-    if not database_url:
-        # Construct URL from individual components if DATABASE_URL is not provided
-        db_user = os.getenv("POSTGRES_USER", "postgres")
-        db_password = os.getenv("POSTGRES_PASSWORD", "postgres")
-        db_host = os.getenv("POSTGRES_HOST", "localhost")
-        db_port = os.getenv("POSTGRES_PORT", "5432")
-        db_name = os.getenv("POSTGRES_DB", "auto_checklist")
-        
-        database_url = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
-    
-    # Handle special case where DATABASE_URL starts with postgres://
-    if database_url.startswith("postgres://"):
-        database_url = database_url.replace("postgres://", "postgresql://", 1)
-    
-    return database_url, {}
-
+# Create SQLAlchemy engine with SQLite
 try:
-    # Get database URL and connect args
-    DATABASE_URL, connect_args = get_database_url()
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args={"check_same_thread": False}  # Needed for SQLite
+    )
     
-    # Create SQLAlchemy engine
-    engine = create_engine(DATABASE_URL, connect_args=connect_args)
-    
-    # Test the connection only in development mode
-    if ENV == "development":
-        with engine.connect() as conn:
-            logger.info("Successfully connected to the database")
+    # Test the connection
+    with engine.connect() as conn:
+        conn.execute(text("SELECT 1"))
+        logger.info("Successfully connected to the database")
 except Exception as e:
     logger.error(f"Error connecting to database: {str(e)}")
-    if ENV != "development":
-        # In production, don't fail immediately - let the application handle reconnection
-        logger.warning("Continuing despite database connection error in non-development environment")
-    else:
-        raise
+    raise
 
-# Create sessionmaker
+# Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+# Create base class for declarative models
+Base = declarative_base()
+
+# Dependency to get database session
 def get_db():
-    """Dependency for getting database session"""
     db = SessionLocal()
     try:
         yield db
