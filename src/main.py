@@ -58,7 +58,8 @@ app.add_middleware(
 )
 
 # Mount static files
-app.mount("/static", StaticFiles(directory="static"), name="static")
+static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 class Message(BaseModel):
     content: str
@@ -76,7 +77,8 @@ class ChecklistResponse(BaseModel):
 
 @app.get("/")
 async def read_root():
-    return FileResponse("static/index.html")
+    index_path = os.path.join(static_dir, "index.html")
+    return FileResponse(index_path)
 
 @app.get("/api/checklists")
 async def get_checklists(db: Session = Depends(get_db)):
