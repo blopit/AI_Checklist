@@ -911,9 +911,9 @@
                 const dataArray = new Uint8Array(bufferLength);
                 let silenceStart = null;
                 let hasSpeech = false;
-                const SILENCE_THRESHOLD = 10;
-                const SPEECH_THRESHOLD = 30;
-                const SILENCE_DURATION = 1500; // 1.5 seconds of silence before stopping
+                const SILENCE_THRESHOLD = 20;  // Increased from 15 to 20 to be more sensitive to silence
+                const SPEECH_THRESHOLD = 30;  // Lowered from 20 to 15 to make speech detection more sensitive
+                const SILENCE_DURATION = 500;  // Reduced from 750ms to 500ms for faster response
                 
                 function checkSilence() {
                     if (!isRecording) return;
@@ -1177,17 +1177,23 @@
             // Don't speak progress updates
             if (text.includes('✅ Just completed:') || text.includes('❌ Just unchecked:')) return;
             
-            // Use OpenAI's TTS API
-            fetch('/api/text-to-speech', {
+            // Use ElevenLabs streaming API
+            fetch('/api/elevenlabs-tts', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({ content: text })
             })
-            .then(response => response.blob())
+            .then(response => {
+                if (!response.ok) throw new Error('TTS request failed');
+                return response.blob();
+            })
             .then(blob => {
                 const url = URL.createObjectURL(blob);
+                if (audioPlayer.src) {
+                    URL.revokeObjectURL(audioPlayer.src);
+                }
                 audioPlayer.src = url;
                 audioPlayer.play();
                 audioPlayer.onended = () => URL.revokeObjectURL(url);

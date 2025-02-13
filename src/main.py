@@ -11,7 +11,7 @@ from openai import AsyncOpenAI
 import os
 from dotenv import load_dotenv
 import json
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 import httpx
 
 from database.connection import get_db
@@ -37,6 +37,10 @@ client = AsyncOpenAI(
 
 # Initialize the checklist agent
 checklist_agent = ChecklistAgent(os.getenv("OPENAI_API_KEY"))
+
+# Add this near other environment variables
+ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
+ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "21m00Tcm4TlvDq8ikWAM") # Default voice
 
 app = FastAPI(title="RED Hospitality Compliance Assistant")
 
@@ -308,4 +312,42 @@ async def text_to_speech(message: Message, background_tasks: BackgroundTasks):
         
     except Exception as e:
         logger.error(f"Error in text-to-speech endpoint: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/elevenlabs-tts")
+async def elevenlabs_tts(message: Message):
+    """Stream audio from ElevenLabs TTS API"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"https://api.elevenlabs.io/v1/text-to-speech/{ELEVENLABS_VOICE_ID}/stream",
+                headers={
+                    "Accept": "audio/mpeg",
+                    "xi-api-key": ELEVENLABS_API_KEY,
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "text": message.content,
+                    "model_id": "eleven_monolingual_v1",
+                    "voice_settings": {
+                        "stability": 0.5,
+                        "similarity_boost": 0.75
+                    }
+                },
+                timeout=30.0
+            )
+            
+            if response.status_code == 200:
+                return StreamingResponse(
+                    response.iter_bytes(),
+                    media_type="audio/mpeg",
+                    headers={
+                        "Content-Disposition": "attachment; filename=speech.mp3"
+                    }
+                )
+            else:
+                raise HTTPException(status_code=response.status_code, detail=str(response.text))
+                
+    except Exception as e:
+        logger.error(f"Error in elevenlabs-tts endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e)) 
