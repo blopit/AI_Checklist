@@ -1,6 +1,7 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.background import BackgroundTasks
 from pydantic import BaseModel
 import logging
 from openai import AsyncOpenAI
@@ -97,17 +98,8 @@ VERIFICATION RULES:
    - Python installation: Output shows Python 3.12 or later -> Mark item 1 complete
    - Virtual environment: Terminal shows (.venv) -> Mark item 2 complete
    - PostgreSQL: pg_isready shows server running -> Mark item 3 complete
-
-IMPORTANT: 
-- IMMEDIATELY mark items as complete when users provide valid verification output
-- Use update_checklist function with completed_items array
-- Don't ask for verification again if valid proof is provided
-- For command outputs:
-  - python --version showing 3.12+ -> Mark Python installation complete
-  - Terminal showing (.venv) -> Mark virtual environment complete
-  - pg_isready success -> Mark PostgreSQL complete
-  - pip list in venv -> Mark virtual environment complete
-  - git --version -> Mark development tools complete"""
+   - pip list in venv -> Mark virtual environment complete
+   - git --version -> Mark development tools complete"""
 
         # Add user message to history
         conversation_history.append({"role": "user", "content": message.content})
@@ -132,6 +124,11 @@ IMPORTANT:
                                 "items": {"type": "integer"},
                                 "description": "IDs of items to mark as completed"
                             },
+                            "uncompleted_items": {
+                                "type": "array",
+                                "items": {"type": "integer"},
+                                "description": "IDs of items to mark as uncompleted"
+                            },
                             "message": {
                                 "type": "string",
                                 "description": "Response message to show to the user"
@@ -155,6 +152,8 @@ IMPORTANT:
             logger.info(f"Function args: {function_args}")
 
             newly_completed = []
+            newly_uncompleted = []
+
             if "completed_items" in function_args:
                 for item_id in function_args["completed_items"]:
                     logger.info(f"Marking item {item_id} as completed")
@@ -163,14 +162,32 @@ IMPORTANT:
                             item["is_completed"] = True
                             newly_completed.append(item["description"])
                             logger.info(f"Marked item {item_id} ({item['description']}) as completed")
+
+            if "uncompleted_items" in function_args:
+                for item_id in function_args["uncompleted_items"]:
+                    logger.info(f"Marking item {item_id} as uncompleted")
+                    for item in checklist_state["items"]:
+                        if item["id"] == item_id and item["is_completed"]:
+                            item["is_completed"] = False
+                            newly_uncompleted.append(item["description"])
+                            logger.info(f"Marked item {item_id} ({item['description']}) as uncompleted")
             
-            # Add completion status to message if items were completed
+            # Add completion status to message if items were completed or uncompleted
             message = function_args["message"]
+            status_updates = []
+
             if newly_completed:
-                completion_status = "\n\n✅ Just completed:\n" + "\n".join(f"- {item}" for item in newly_completed)
+                completion_status = "✅ Just completed:\n" + "\n".join(f"- {item}" for item in newly_completed)
+                status_updates.append(completion_status)
+
+            if newly_uncompleted:
+                uncompletion_status = "❌ Just unchecked:\n" + "\n".join(f"- {item}" for item in newly_uncompleted)
+                status_updates.append(uncompletion_status)
+
+            if status_updates:
                 total_completed = sum(1 for item in checklist_state["items"] if item["is_completed"])
-                completion_status += f"\n\nProgress: {total_completed}/{len(checklist_state['items'])} tasks completed"
-                message += completion_status
+                progress = f"\nProgress: {total_completed}/{len(checklist_state['items'])} tasks completed"
+                message += "\n\n" + "\n\n".join(status_updates) + progress
             
             return {
                 "message": message,
@@ -191,4 +208,57 @@ IMPORTANT:
 
     except Exception as e:
         logger.error(f"Error in chat endpoint: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/speech-to-text")
+async def speech_to_text(audio: UploadFile = File(...)):
+    try:
+        # Save the audio file temporarily
+        temp_file = f"temp_{audio.filename}"
+        with open(temp_file, "wb") as buffer:
+            content = await audio.read()
+            buffer.write(content)
+        
+        # Transcribe using OpenAI's Whisper API
+        with open(temp_file, "rb") as audio_file:
+            transcript = await client.audio.transcriptions.create(
+                model="whisper-1",
+                file=audio_file
+            )
+        
+        # Clean up temp file
+        os.remove(temp_file)
+        
+        return {"text": transcript.text}
+        
+    except Exception as e:
+        logger.error(f"Error in speech-to-text endpoint: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/text-to-speech")
+async def text_to_speech(message: Message, background_tasks: BackgroundTasks):
+    try:
+        # Generate speech using OpenAI's TTS API
+        response = await client.audio.speech.create(
+            model="tts-1",
+            voice="alloy",
+            input=message.content
+        )
+        
+        # Create a temporary file to store the audio
+        temp_file = "temp_speech.mp3"
+        response.stream_to_file(temp_file)
+        
+        # Schedule file cleanup after response is sent
+        background_tasks.add_task(os.remove, temp_file)
+        
+        # Return the audio file
+        return FileResponse(
+            temp_file,
+            media_type="audio/mpeg",
+            headers={"Content-Disposition": "attachment; filename=speech.mp3"}
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in text-to-speech endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e)) 
